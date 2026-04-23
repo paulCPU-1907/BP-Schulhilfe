@@ -34,9 +34,13 @@ Die Werte findest du in Supabase unter Project Settings -> API:
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-4o-mini
 ```
 
 Lege danach in Supabase die Tabelle aus `supabase/schema.sql` im SQL Editor an.
+Wenn `OPENAI_API_KEY` gesetzt ist, nutzt das Backend OpenAI fuer OCR und Lernanalyse.
+Ohne OpenAI-Key laeuft die App weiter mit simulierten Demo-Ergebnissen.
 
 Mit Docker:
 
@@ -49,6 +53,7 @@ Danach sind die Services erreichbar:
 - Frontend: `http://localhost:5173`
 - Backend Healthcheck: `http://localhost:3000/health`
 - Supabase Healthcheck: `http://localhost:3000/api/supabase/health`
+- OpenAI Healthcheck: `http://localhost:3000/api/openai/health`
 
 Ohne Docker koennen beide Services separat gestartet werden:
 

@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import { randomUUID } from "node:crypto";
+import { analyzeWithOpenAi, getOpenAiStatus, isOpenAiConfigured } from "./openai.js";
 import { getSupabaseStatus, isSupabaseConfigured, supabase } from "./supabase.js";
 
 const app = express();
@@ -21,6 +22,7 @@ app.get("/api/health", (_request, response) => {
   response.json({
     status: "ok",
     service: "bp-backend",
+    openai: getOpenAiStatus(),
     supabase: getSupabaseStatus()
   });
 });
@@ -54,6 +56,13 @@ app.get("/api/supabase/health", async (_request, response) => {
   response.json({
     status: "ok",
     supabase: getSupabaseStatus()
+  });
+});
+
+app.get("/api/openai/health", (_request, response) => {
+  response.status(isOpenAiConfigured ? 200 : 503).json({
+    status: isOpenAiConfigured ? "ok" : "not_configured",
+    openai: getOpenAiStatus()
   });
 });
 
@@ -112,14 +121,15 @@ async function analyzeFile(file, index, requestId) {
       size: file.size
     });
 
-    const ocrText = await runOcr(file);
+    const aiResult = isOpenAiConfigured
+      ? await analyzeWithOpenAi(file)
+      : await runDemoAnalysis(file);
 
     console.log(`[${requestId}] OCR fertig`, {
       fileName,
-      textLength: ocrText.length
+      textLength: aiResult.ocrText.length,
+      provider: isOpenAiConfigured ? "openai" : "demo"
     });
-
-    const aiResult = await runAiAnalysis(ocrText, fileName);
 
     console.log(`[${requestId}] KI fertig`, {
       fileName,
@@ -130,7 +140,7 @@ async function analyzeFile(file, index, requestId) {
       id: randomUUID(),
       fileName,
       status: "completed",
-      ocrText,
+      provider: isOpenAiConfigured ? "openai" : "demo",
       ...aiResult
     };
   } catch (error) {
@@ -181,7 +191,17 @@ function isSupportedFileType(file) {
   );
 }
 
-async function runOcr(file) {
+async function runDemoAnalysis(file) {
+  const ocrText = await runDemoOcr(file);
+  const aiResult = await runDemoAiAnalysis(ocrText, file.name);
+
+  return {
+    ocrText,
+    ...aiResult
+  };
+}
+
+async function runDemoOcr(file) {
   await wait(350);
 
   const readableType = file.type || "unbekannter Dateityp";
@@ -194,7 +214,7 @@ async function runOcr(file) {
   ].join(" ");
 }
 
-async function runAiAnalysis(ocrText, fileName) {
+async function runDemoAiAnalysis(ocrText, fileName) {
   await wait(450);
 
   if (!ocrText.trim()) {
