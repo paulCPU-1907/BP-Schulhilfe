@@ -22,6 +22,22 @@ Das Frontend ruft das Backend ueber `/api` auf. In der lokalen Docker-Umgebung l
 
 ## Lokal starten
 
+Kopiere zuerst die Beispiel-Umgebung fuer das Backend und trage deine Supabase-Werte ein:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Die Werte findest du in Supabase unter Project Settings -> API:
+
+```text
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+Lege danach in Supabase die Tabelle aus `supabase/schema.sql` im SQL Editor an.
+
 Mit Docker:
 
 ```bash
@@ -32,6 +48,7 @@ Danach sind die Services erreichbar:
 
 - Frontend: `http://localhost:5173`
 - Backend Healthcheck: `http://localhost:3000/health`
+- Supabase Healthcheck: `http://localhost:3000/api/supabase/health`
 
 Ohne Docker koennen beide Services separat gestartet werden:
 
@@ -60,5 +77,7 @@ BP/
     Dockerfile
     package.json
   docker-compose.yml
+  supabase/
+    schema.sql
   README.md
 ```

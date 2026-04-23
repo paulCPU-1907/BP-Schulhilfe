@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import { randomUUID } from "node:crypto";
+import { getSupabaseStatus, isSupabaseConfigured, supabase } from "./supabase.js";
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -19,13 +20,40 @@ app.get("/health", (_request, response) => {
 app.get("/api/health", (_request, response) => {
   response.json({
     status: "ok",
-    service: "bp-backend"
+    service: "bp-backend",
+    supabase: getSupabaseStatus()
   });
 });
 
 app.get("/api/message", (_request, response) => {
   response.json({
     message: "Hallo vom Backend Microservice!"
+  });
+});
+
+app.get("/api/supabase/health", async (_request, response) => {
+  if (!isSupabaseConfigured) {
+    return response.status(503).json({
+      status: "not_configured",
+      supabase: getSupabaseStatus()
+    });
+  }
+
+  const { error } = await supabase
+    .from("analysis_results")
+    .select("id", { count: "exact", head: true });
+
+  if (error) {
+    return response.status(500).json({
+      status: "error",
+      error: error.message,
+      supabase: getSupabaseStatus()
+    });
+  }
+
+  response.json({
+    status: "ok",
+    supabase: getSupabaseStatus()
   });
 });
 
@@ -55,6 +83,8 @@ app.post("/api/analyze", async (request, response) => {
       completed: results.filter((result) => result.status === "completed").length,
       failed: results.filter((result) => result.status === "failed").length
     });
+
+    await persistAnalysisResults(requestId, results);
 
     response.json({
       requestId,
@@ -179,6 +209,37 @@ async function runAiAnalysis(ocrText, fileName) {
       "Erstelle zwei Pruefungsfragen und beantworte sie."
     ]
   };
+}
+
+async function persistAnalysisResults(requestId, results) {
+  if (!isSupabaseConfigured) {
+    console.log(`[${requestId}] Supabase nicht konfiguriert, Speicherung uebersprungen`);
+    return;
+  }
+
+  const rows = results.map((result) => ({
+    id: result.id,
+    request_id: requestId,
+    file_name: result.fileName,
+    status: result.status,
+    ocr_text: result.ocrText || null,
+    summary: result.summary || null,
+    tasks: result.tasks || [],
+    error: result.error || null
+  }));
+
+  const { error } = await supabase.from("analysis_results").insert(rows);
+
+  if (error) {
+    console.error(`[${requestId}] Supabase-Speicherung fehlgeschlagen`, {
+      error: error.message
+    });
+    return;
+  }
+
+  console.log(`[${requestId}] Supabase-Speicherung erfolgreich`, {
+    rowCount: rows.length
+  });
 }
 
 function wait(milliseconds) {
