@@ -90,6 +90,12 @@ Komponenten:
   - Laufende Sitzungsdokumentation
 - `Backlog.md`
   - offene Aufgaben und Nacharbeiten
+- `DECISIONS.md`
+  - Architekturentscheidungen (ADRs) mit Begruendungen
+- `TESTING.md`
+  - Teststrategie, manuelle Teststrecke, geplante automatisierte Tests
+- `.claude/agents/`
+  - Spezialisierte Agenten-Definitionen (frontend-developer, backend-developer, devops-expert, ux-expert, prompt-engineer)
 - `backend/src/server.js`
   - zentrale API-Logik
 - `backend/src/openai.js`
@@ -135,6 +141,22 @@ Die Tabelle dient aktuell vor allem:
 - Konfiguriert ueber `OPENAI_API_KEY` und optional `OPENAI_MODEL`
 - Responses API wird fuer Bild-/PDF-Analyse und strukturierte JSON-Antworten verwendet
 - End-to-End-Test war erfolgreich
+
+## Lokale Entwicklung – wichtige Env-Variablen
+
+Im Frontend gibt es zwei unterschiedliche Variablen, die leicht verwechselt werden koennen:
+
+- `VITE_BACKEND_URL`: steuert den **Dev-Proxy-Target** in `vite.config.js` (nur lokal relevant, Default: `http://localhost:3000`)
+- `VITE_API_BASE_URL`: steuert die **API-Basis-URL im Build** (relevant fuer Production/GitHub Pages)
+
+Lokal wird kein `VITE_API_BASE_URL` gebraucht – der Vite-Proxy leitet `/api`-Requests automatisch weiter.
+Fuer einen GitHub-Pages-Deploy muss `VITE_API_BASE_URL` als GitHub-Actions-Variable gesetzt werden.
+
+## Bekannte Implementierungsdetails
+
+- Frontend-Limit: 8 MB pro Datei (client-seitig); Backend-Limit: 25 MB JSON-Payload. Die Diskrepanz ist beabsichtigt: Base64-Encoding verursacht ca. 33 % Overhead.
+- `extractOutputText()` in `openai.js` ist ein Fallback-Pfad fuer den Fall, dass `data.output_text` fehlt. Sollte beobachtet werden, wenn sich die OpenAI-Response-Struktur aendert.
+- `key={task}` in der ResultCard-Task-Liste ist nicht robust bei identischen Aufgaben. Kleines Schoenheitsproblem, kein Funktionsfehler.
 
 ## Deployment-Realitaet
 
