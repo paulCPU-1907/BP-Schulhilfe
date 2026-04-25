@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LernPilot Demo</title>
+    <link rel="stylesheet" href="./local-demo/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Lokale MVP-Demo</p>
+          <h1>Mehrere Lernmaterialien hochladen. Ergebnisse pro Datei sehen.</h1>
+          <p class="intro">
+            Diese lokale Website zeigt den geplanten Ablauf der Lern-App:
+            Multi-Upload, OCR/KI-Verarbeitung, Ergebnisse pro Datei und Agenda.
+          </p>
+        </div>
+        <div class="hero-panel">
+          <span>Demo auf GitHub Pages</span>
+          <strong>BP-Schulhilfe</strong>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="card upload-card">
+          <p class="section-label">1. Upload</p>
+          <h2>Dateien auswählen</h2>
+          <p>
+            Wähle mehrere Fotos oder PDFs aus. In dieser Demo wird die KI-Verarbeitung
+            simuliert, damit der Ablauf sofort sichtbar ist.
+          </p>
+          <label class="dropzone">
+            <input id="fileInput" type="file" accept="image/*,.pdf" multiple />
+            <span id="fileName">PDFs oder Fotos hier auswählen</span>
+          </label>
+          <ul class="clean-list" id="fileList"></ul>
+          <button id="processButton" type="button">Multi-Upload -> KI starten</button>
+        </article>
+
+        <article class="card">
+          <p class="section-label">2. Verarbeitung</p>
+          <h2>Status</h2>
+          <ol class="steps" id="steps">
+            <li data-step="upload">Datei hochladen</li>
+            <li data-step="ocr">Text per OCR erkennen</li>
+            <li data-step="analysis">Inhalt mit KI analysieren</li>
+            <li data-step="generation">Lernmaterial erzeugen</li>
+          </ol>
+        </article>
+      </section>
+
+      <section class="results" id="results" aria-live="polite">
+        <article class="card wide" id="resultsIntro">
+          <p class="section-label">3. Ergebnisse</p>
+          <h2>Noch keine Analyse gestartet</h2>
+          <p>Wähle mehrere Dateien aus und starte die KI-Analyse.</p>
+        </article>
+        <div class="result-list" id="resultList"></div>
+
+        <article class="card wide agenda">
+          <p class="section-label">Agenda</p>
+          <h2>Lernplan bis zur Prüfung</h2>
+          <div class="timeline">
+            <div><span>Heute</span><strong>Material hochladen und Zusammenfassung lesen</strong></div>
+            <div><span>Morgen</span><strong>Quiz bearbeiten und Fehler wiederholen</strong></div>
+            <div><span>In 3 Tagen</span><strong>Karteikarten lernen</strong></div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script src="./local-demo/script.js"></script>
+  </body>
+</html>
