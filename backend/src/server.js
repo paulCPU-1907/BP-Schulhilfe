@@ -1,7 +1,10 @@
 import cors from "cors";
 import express from "express";
 import { randomUUID } from "node:crypto";
-import { analyzeWithOpenAi, getOpenAiStatus, isOpenAiConfigured } from "./openai.js";
+import { validateFile, runAnalysis } from "./fileAnalysis.js";
+import { getOpenAiStatus, isOpenAiConfigured } from "./openai.js";
+import { registerPackageRoutes } from "./packages.js";
+import { registerSubjectRoutes } from "./subjects.js";
 import { getSupabaseStatus, isSupabaseConfigured, supabase } from "./supabase.js";
 
 const app = express();
@@ -10,6 +13,9 @@ const maxPayloadSize = "25mb";
 
 app.use(cors());
 app.use(express.json({ limit: maxPayloadSize }));
+
+registerSubjectRoutes(app);
+registerPackageRoutes(app);
 
 app.get("/health", (_request, response) => {
   response.json({
@@ -95,13 +101,9 @@ app.post("/api/analyze", async (request, response) => {
 
     await persistAnalysisResults(requestId, results);
 
-    response.json({
-      requestId,
-      results
-    });
+    response.json({ requestId, results });
   } catch (error) {
     console.error(`[${requestId}] /api/analyze unerwarteter Fehler`, error);
-
     response.status(500).json({
       requestId,
       error: "Analyse konnte nicht abgeschlossen werden."
@@ -115,25 +117,14 @@ async function analyzeFile(file, index, requestId) {
   try {
     validateFile(file);
 
-    console.log(`[${requestId}] OCR startet`, {
-      fileName,
-      type: file.type,
-      size: file.size
-    });
+    console.log(`[${requestId}] OCR startet`, { fileName, type: file.type, size: file.size });
 
-    const aiResult = isOpenAiConfigured
-      ? await analyzeWithOpenAi(file)
-      : await runDemoAnalysis(file);
+    const aiResult = await runAnalysis(file);
 
     console.log(`[${requestId}] OCR fertig`, {
       fileName,
       textLength: aiResult.ocrText.length,
       provider: isOpenAiConfigured ? "openai" : "demo"
-    });
-
-    console.log(`[${requestId}] KI fertig`, {
-      fileName,
-      taskCount: aiResult.tasks.length
     });
 
     return {
@@ -144,91 +135,9 @@ async function analyzeFile(file, index, requestId) {
       ...aiResult
     };
   } catch (error) {
-    console.error(`[${requestId}] Datei fehlgeschlagen`, {
-      fileName,
-      error: error.message
-    });
-
-    return {
-      id: randomUUID(),
-      fileName,
-      status: "failed",
-      error: error.message
-    };
+    console.error(`[${requestId}] Datei fehlgeschlagen`, { fileName, error: error.message });
+    return { id: randomUUID(), fileName, status: "failed", error: error.message };
   }
-}
-
-function validateFile(file) {
-  if (!file || typeof file !== "object") {
-    throw new Error("Dateiobjekt fehlt.");
-  }
-
-  if (!file.name) {
-    throw new Error("Dateiname fehlt.");
-  }
-
-  if (!file.contentBase64) {
-    throw new Error("Dateiinhalt fehlt.");
-  }
-
-  if (!isSupportedFileType(file)) {
-    throw new Error("Nur PDFs und Bilder werden unterstuetzt.");
-  }
-}
-
-function isSupportedFileType(file) {
-  const type = file.type || "";
-  const lowerName = file.name.toLowerCase();
-
-  return (
-    type === "application/pdf" ||
-    type.startsWith("image/") ||
-    lowerName.endsWith(".pdf") ||
-    lowerName.endsWith(".png") ||
-    lowerName.endsWith(".jpg") ||
-    lowerName.endsWith(".jpeg") ||
-    lowerName.endsWith(".webp")
-  );
-}
-
-async function runDemoAnalysis(file) {
-  const ocrText = await runDemoOcr(file);
-  const aiResult = await runDemoAiAnalysis(ocrText, file.name);
-
-  return {
-    ocrText,
-    ...aiResult
-  };
-}
-
-async function runDemoOcr(file) {
-  await wait(350);
-
-  const readableType = file.type || "unbekannter Dateityp";
-
-  return [
-    `Simulierter OCR-Text aus ${file.name}.`,
-    `Dateityp: ${readableType}.`,
-    "In der echten App wird hier der erkannte Text aus PDF oder Bild gespeichert.",
-    "Dieser Text wird anschliessend an die KI-Analyse weitergegeben."
-  ].join(" ");
-}
-
-async function runDemoAiAnalysis(ocrText, fileName) {
-  await wait(450);
-
-  if (!ocrText.trim()) {
-    throw new Error("OCR hat keinen Text geliefert.");
-  }
-
-  return {
-    summary: `Kurzfassung fuer ${fileName}: Das Dokument wurde erkannt und in Lernstoff umgewandelt. Wichtig ist, dass OCR-Text vorhanden ist und die KI-Antwort als JSON an das Frontend zurueckgegeben wird.`,
-    tasks: [
-      "Markiere die drei wichtigsten Begriffe im Material.",
-      "Schreibe eine eigene Zusammenfassung in fuenf Saetzen.",
-      "Erstelle zwei Pruefungsfragen und beantworte sie."
-    ]
-  };
 }
 
 async function persistAnalysisResults(requestId, results) {
@@ -251,21 +160,11 @@ async function persistAnalysisResults(requestId, results) {
   const { error } = await supabase.from("analysis_results").insert(rows);
 
   if (error) {
-    console.error(`[${requestId}] Supabase-Speicherung fehlgeschlagen`, {
-      error: error.message
-    });
+    console.error(`[${requestId}] Supabase-Speicherung fehlgeschlagen`, { error: error.message });
     return;
   }
 
-  console.log(`[${requestId}] Supabase-Speicherung erfolgreich`, {
-    rowCount: rows.length
-  });
-}
-
-function wait(milliseconds) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, milliseconds);
-  });
+  console.log(`[${requestId}] Supabase-Speicherung erfolgreich`, { rowCount: rows.length });
 }
 
 app.listen(port, () => {

@@ -6,3 +6,4 @@ build/
 backend/.env
 coverage/
 npm-debug.log*
+supabase/.temp/

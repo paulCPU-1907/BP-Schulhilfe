@@ -33,8 +33,9 @@ export async function analyzeWithOpenAi(file) {
               text: [
                 "Du bist ein OCR- und Lernassistent fuer Schueler.",
                 "Extrahiere zuerst den erkennbaren Text aus der Datei.",
-                "Erstelle danach eine kurze, lernfreundliche Zusammenfassung und konkrete Aufgaben.",
-                "Antworte ausschliesslich als JSON passend zum Schema."
+                "Erstelle danach eine kurze Zusammenfassung, allgemeine Lernaufgaben,",
+                "Multiple-Choice-Fragen mit je vier Antwortoptionen sowie offene Aufgaben mit Musterloesungen.",
+                "Alle Texte auf Deutsch. Antworte ausschliesslich als JSON passend zum Schema."
               ].join(" ")
             }
           ]
@@ -59,19 +60,70 @@ export async function analyzeWithOpenAi(file) {
               },
               summary: {
                 type: "string",
-                description: "Eine kurze deutsche Zusammenfassung des Lernmaterials."
+                description: "Eine kurze deutsche Zusammenfassung des Lernmaterials (3-5 Saetze)."
               },
               tasks: {
                 type: "array",
                 minItems: 3,
                 maxItems: 5,
+                items: { type: "string" },
+                description: "Allgemeine Lernaufgaben auf Deutsch."
+              },
+              multiple_choice_questions: {
+                type: "array",
+                minItems: 3,
+                maxItems: 5,
+                description: "Multiple-Choice-Fragen zum Inhalt des Dokuments.",
                 items: {
-                  type: "string"
-                },
-                description: "Konkrete Lernaufgaben auf Deutsch."
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    question: {
+                      type: "string",
+                      description: "Die Frage auf Deutsch."
+                    },
+                    options: {
+                      type: "array",
+                      minItems: 4,
+                      maxItems: 4,
+                      items: { type: "string" },
+                      description: "Genau vier Antwortoptionen, davon eine korrekt."
+                    },
+                    correct_index: {
+                      type: "integer",
+                      description: "Index der korrekten Antwort (0-3)."
+                    },
+                    explanation: {
+                      type: "string",
+                      description: "Kurze Erklaerung warum diese Antwort korrekt ist."
+                    }
+                  },
+                  required: ["question", "options", "correct_index", "explanation"]
+                }
+              },
+              aufgaben: {
+                type: "array",
+                minItems: 2,
+                maxItems: 4,
+                description: "Offene Aufgaben mit Musterloesung fuer Selbstbewertung.",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    question: {
+                      type: "string",
+                      description: "Die offene Aufgabe auf Deutsch."
+                    },
+                    model_answer: {
+                      type: "string",
+                      description: "Eine Musterloesung, die der Schueler nach eigenem Versuch aufdecken kann."
+                    }
+                  },
+                  required: ["question", "model_answer"]
+                }
               }
             },
-            required: ["ocrText", "summary", "tasks"]
+            required: ["ocrText", "summary", "tasks", "multiple_choice_questions", "aufgaben"]
           }
         }
       }
