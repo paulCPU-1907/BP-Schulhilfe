@@ -167,6 +167,10 @@ async function persistAnalysisResults(requestId, results) {
   console.log(`[${requestId}] Supabase-Speicherung erfolgreich`, { rowCount: rows.length });
 }
 
-app.listen(port, () => {
-  console.log(`Backend service listening on port ${port}`);
-});
+export { app };
+
+if (process.env.NODE_ENV !== "test") {
+  app.listen(port, () => {
+    console.log(`Backend service listening on port ${port}`);
+  });
+}

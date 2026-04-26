@@ -1,90 +1,166 @@
 # Testing
 
-## Aktueller Stand
+## Automatisierte Tests (Stand 2026-04-26)
 
-Es gibt noch keine automatisierten Tests. Das Projekt ist ein MVP mit Debug-Fokus.
-Alle Verifikationen laufen aktuell manuell ueber lokale Ausfuehrung.
-
----
-
-## Manuelle Teststrecke (aktuell)
-
-### 1. Backend starten und Healthchecks pruefen
+### Ausführen
 
 ```bash
-cd backend && npm run dev
+# Backend (49 Tests)
+cd backend && npm test
+
+# Frontend (33 Tests)
+cd frontend && npm test
+
+# Watch-Modus (während der Entwicklung)
+cd backend && npm run test:watch
+cd frontend && npm run test:watch
 ```
 
-- `GET /health` → `{ status: "ok" }`
-- `GET /api/health` → Zustand von OpenAI und Supabase
-- `GET /api/openai/health` → `{ status: "ok" }` wenn Key gesetzt
-- `GET /api/supabase/health` → `{ status: "ok" }` wenn Tabelle erreichbar
+### Ergebnis lokal verifiziert
 
-### 2. Demo-Modus (ohne OpenAI-Key)
-
-- `OPENAI_API_KEY` aus `.env` entfernen oder leer lassen
-- `/api/analyze` mit einer Testdatei aufrufen
-- Ergebnis: simulierter OCR-Text, feste Zusammenfassung, drei Demo-Aufgaben
-- Status: `provider: "demo"`
-
-### 3. OpenAI End-to-End (mit echtem Key)
-
-- Bild oder PDF hochladen
-- Ergebnis enthaelt: `ocrText`, `summary`, `tasks` (3–5 Eintraege)
-- Status: `provider: "openai"`, `status: "completed"`
-
-### 4. Supabase-Persistenz
-
-- Nach einer Analyse: in Supabase unter `analysis_results` pruefen
-- Erwartete Felder: `id`, `request_id`, `file_name`, `status`, `ocr_text`, `summary`, `tasks`, `created_at`
-
-### 5. Fehlerfall: nicht unterstuetzter Dateityp
-
-- `.txt`-Datei hochladen
-- Erwartet: `status: "failed"`, `error: "Nur PDFs und Bilder werden unterstuetzt."`
-
-### 6. Fehlerfall: Datei zu gross
-
-- Datei > 8 MB auswaehlen
-- Erwartet: Fehlermeldung im Frontend, kein Request ans Backend
+```
+backend:  Test Files 4 passed  |  Tests 49 passed
+frontend: Test Files 3 passed  |  Tests 33 passed
+```
 
 ---
 
-## Geplante automatisierte Tests
+## Test-Framework
 
-Sobald Tests eingefuehrt werden, gilt diese Strategie:
-
-### Backend (Unit + Integration)
-
-| Was | Wie |
+| Schicht | Tool |
 |---|---|
-| `validateFile()` – gueltiger und ungueltiger Input | Unit-Test mit `node:test` oder Vitest |
-| `isSupportedFileType()` – alle Dateitypen | Unit-Test |
-| `runDemoAnalysis()` – Demo-Pfad | Unit-Test |
-| `POST /api/analyze` – Demo-Modus ohne OpenAI | Integration-Test gegen echten Express-Server |
-| `POST /api/analyze` – Fehlerfall (keine Dateien) | Integration-Test |
-| Supabase-Persistenz | Integration-Test gegen lokale Supabase-Instanz oder Mock |
+| Backend Unit + Integration | **Vitest** + **Supertest** |
+| Frontend Unit | **Vitest** |
+| Frontend Komponenten | **Vitest** + **@testing-library/react** + **@testing-library/user-event** |
+| CI | **GitHub Actions** (läuft vor dem Frontend-Build) |
 
-**Wichtig:** Supabase-Tests sollen gegen eine echte Instanz laufen, nicht gegen Mocks (Risiko: Mock/Prod-Divergenz). Lokale Supabase-CLI oder Test-Projekt verwenden.
+---
+
+## Backend-Tests (`backend/src/__tests__/`)
+
+### `fileAnalysis.test.js` – Unit-Tests
+
+| Test | Was wird geprüft |
+|---|---|
+| `validateFile` – gültige PDF/Bild | kein Fehler |
+| `validateFile` – null, kein Objekt | wirft "Dateiobjekt fehlt." |
+| `validateFile` – kein Name | wirft "Dateiname fehlt." |
+| `validateFile` – kein contentBase64 | wirft "Dateiinhalt fehlt." |
+| `validateFile` – .txt | wirft "Nur PDFs und Bilder..." |
+| `isSupportedFileType` – alle Typen | PDF ✓, PNG ✓, JPG ✓, WEBP ✓, TXT ✗, DOCX ✗ |
+| `runAnalysis` Demo-Modus | vollständiges Ergebnisobjekt, 4 Optionen pro MC |
+
+### `api.test.js` – Integrationstests (Supabase + OpenAI gemockt)
+
+| Test | Was wird geprüft |
+|---|---|
+| `GET /health` | 200, `status: "ok"` |
+| `GET /api/health` | openai + supabase im Body |
+| `GET /api/openai/health` | 503 wenn nicht konfiguriert |
+| `POST /api/analyze` – keine files | 400 |
+| `POST /api/analyze` – Demo-PDF | `status: "completed"`, `provider: "demo"` |
+| `POST /api/analyze` – .txt | `status: "failed"` |
+| `POST /api/analyze` – 3 Dateien | 2 completed, 1 failed |
+
+### `subjects.test.js` – Integrationstests
+
+| Test | Was wird geprüft |
+|---|---|
+| `GET /api/subjects` | Liste mit `package_count` |
+| `POST /api/subjects` | 201, `package_count: 0`, Trimming |
+| Fehlerfall (400 / 500) | korrekte HTTP-Statuscodes |
+| `GET /api/subjects/:id/packages` | Liste mit `material_count` |
+| `POST /api/packages` | 201, Pflichtfelder geprüft |
+
+### `packages.test.js` – Integrationstests
+
+| Test | Was wird geprüft |
+|---|---|
+| `GET /api/packages/:id` | Paket mit Materialien und `activity_count` |
+| `GET /api/packages/:id/activities` | Aktivitätsliste, Leerfall |
+| `POST /api/packages/:id/analyze` – Demo | `status: "completed"`, Supabase-Schreibvorgänge verifiziert |
+| `POST /api/packages/:id/analyze` – .txt | `status: "failed"`, kein Supabase-Schreibvorgang |
+| `POST /api/packages/:id/analyze` – DB-Fehler | `status: "failed"` mit Fehlermeldung |
+
+---
+
+## Frontend-Tests (`frontend/src/__tests__/`)
+
+### `utils.test.js` – Unit-Tests
+
+| Test | Was wird geprüft |
+|---|---|
+| `formatFileSize` | KB / MB, Rundung, exakt 1 MB |
+| `shuffle` | kein Mutation, keine Verluste, Reihenfolge geändert |
+
+### `App.test.jsx` – SubjectsView-Komponente
+
+| Test | Was wird geprüft |
+|---|---|
+| Ladezustand | "Lade Fächer …" sichtbar |
+| Leerzustand / Fächerliste / Fehlerfall | korrekte Zustände |
+| Singular/Plural | "1 Lernpaket" vs. "N Lernpakete" |
+| Fach anlegen | Formular → POST → neues Fach in Liste |
+
+### `LearnView.test.jsx` – Lernkarten
+
+| Komponente | Getestetes Verhalten |
+|---|---|
+| `MultipleChoiceCard` | Anzeige, richtig/falsch, Callback, Lock nach Auswahl |
+| `AufgabeCard` | Reveal, Musterlösung, Selbstbewertung-Callback |
+| `ScoreCard` | Prozentwert, Statistik, Restart/Back-Callbacks |
+
+---
+
+## Mocking-Strategie
+
+### Backend
+- **Supabase**: `vi.mock("../supabase.js")` ersetzt den Client durch einen **thenable Chain-Mock**.  
+  Jede Methode gibt die Chain zurück; die Chain ist direkt awaitable (`then` implementiert).
+- **OpenAI**: `vi.mock("../openai.js")` mit `isOpenAiConfigured: false` → Demo-Modus.
+- **Supertest**: übergibt den exportierten Express-`app` ohne `listen()`.
 
 ### Frontend
-
-| Was | Wie |
-|---|---|
-| Dateigroessen-Validierung | Vitest + Testing Library |
-| `fileToPayload()` – Base64-Encoding | Vitest |
-| ResultCard – Rendering von `completed` und `failed` | Vitest + Testing Library |
-
-### Empfohlenes Test-Framework
-
-- Backend: `node:test` (kein extra Dependency) oder **Vitest** (einheitlich mit Frontend)
-- Frontend: **Vitest** + **@testing-library/react**
-- HTTP-Tests: **supertest**
+- **fetch**: `global.fetch = vi.fn()` pro Testdatei konfigurierbar.
+- **DOM**: jsdom (Vitest-Environment).
 
 ---
 
-## Hinweise fuer spaetere CI-Integration
+## CI-Integration
 
-- Tests laufen idealerweise in GitHub Actions vor dem Frontend-Deploy
-- Supabase-Tests koennen gegen `supabase start` (lokale CLI) laufen
-- OpenAI-Calls in Tests immer mocken (Kostenkontrolle, Determinismus)
+Der GitHub Actions Workflow (`.github/workflows/deploy-pages.yml`) führt vor dem Build einen `test`-Job aus:
+
+```
+test → build → deploy
+```
+
+Schlägt ein Test fehl, wird weder gebaut noch deployed.
+
+---
+
+## Manuelle Teststrecke (E2E – noch nicht automatisiert)
+
+### 1. Demo-Modus (ohne OpenAI-Key)
+- `OPENAI_API_KEY` aus `.env` entfernen
+- PDF hochladen → Demo-Aktivitäten erscheinen → Lernsession funktioniert
+
+### 2. OpenAI End-to-End
+- Bild oder PDF hochladen → echter OCR-Text, Zusammenfassung, Lernaufgaben
+
+### 3. Supabase-Persistenz
+- Nach Analyse: in Supabase unter `learning_materials` und `learning_activities` prüfen
+
+### 4. Edge Function (Production)
+```bash
+curl https://pwhmafuitbikbwmsfjjb.supabase.co/functions/v1/subjects
+curl -X POST .../subjects -H "Content-Type: application/json" -d '{"name":"Test"}'
+```
+
+---
+
+## Geplante Erweiterungen
+
+- **E2E-Tests mit Playwright**: vollständiger Lernfluss im Browser
+- **Supabase-Integrationstests**: gegen echte Test-Instanz für Migrationssicherheit
+- **Coverage-Report**: `npm run test -- --coverage` (`@vitest/coverage-v8` bereits installiert)
+- **Edge Function Tests**: Deno-Testrunner für `supabase/functions/`

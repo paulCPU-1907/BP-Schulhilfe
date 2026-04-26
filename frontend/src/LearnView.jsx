@@ -126,7 +126,7 @@ function LearnShell({ pkg, onNavigate, children }) {
   );
 }
 
-function MultipleChoiceCard({ activity, onAnswer }) {
+export function MultipleChoiceCard({ activity, onAnswer }) {
   const { question, options, correct_index, explanation } = activity.content;
   const [selected, setSelected] = useState(null);
 
@@ -174,7 +174,7 @@ function MultipleChoiceCard({ activity, onAnswer }) {
   );
 }
 
-function AufgabeCard({ activity, onAnswer }) {
+export function AufgabeCard({ activity, onAnswer }) {
   const { question, model_answer } = activity.content;
   const [revealed, setRevealed] = useState(false);
 
@@ -208,7 +208,7 @@ function AufgabeCard({ activity, onAnswer }) {
   );
 }
 
-function ScoreCard({ activities, answers, onRestart, onBack }) {
+export function ScoreCard({ activities, answers, onRestart, onBack }) {
   const mcActivities = activities.filter((a) => a.type === "multiple_choice");
   const aufgabeActivities = activities.filter((a) => a.type === "aufgabe");
 

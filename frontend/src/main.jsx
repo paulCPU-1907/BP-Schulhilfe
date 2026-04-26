@@ -158,4 +158,9 @@ function SubjectsView({ onNavigate }) {
   );
 }
 
-createRoot(document.getElementById("root")).render(<App />);
+export { App };
+
+const rootEl = document.getElementById("root");
+if (rootEl) {
+  createRoot(rootEl).render(<App />);
+}
