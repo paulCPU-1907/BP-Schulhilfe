@@ -67,6 +67,25 @@
 - Supabase-Secret und OpenAI-Key müssen noch rotiert werden (Backlog)
 - Frontend-Build verifiziert: ✓ (235 ms, keine Fehler)
 
+## Stand 2026-04-26 (Session 4 – Supabase Edge Functions)
+
+- Express-Backend durch Supabase Edge Functions (Deno) ersetzt.
+- Zwei Functions deployt: `subjects` und `packages` (Projekt: pwhmafuitbikbwmsfjjb).
+- OpenAI-API-Key als Supabase-Secret hinterlegt (OPENAI_API_KEY, OPENAI_MODEL).
+- Edge Functions sind unter https://pwhmafuitbikbwmsfjjb.supabase.co/functions/v1/ erreichbar.
+- VITE_API_BASE_URL in GitHub Actions Variable gesetzt: https://pwhmafuitbikbwmsfjjb.supabase.co/functions/v1
+- Frontend neu gebaut (VITE_API_BASE_URL eingebettet) und als Legacy-Pages in main-Branch gepusht.
+- End-to-End-Test aller Endpoints erfolgreich: GET/POST /subjects, GET /subjects/:id/packages, POST /packages, GET /packages/:id/activities.
+- GitHub Pages (legacy mode) zeigt jetzt korrekte React-App mit funktionierendem Backend.
+- Test-Fach und Test-Paket in Supabase angelegt (fuer Entwicklungstest, koennen im UI geloescht werden wenn Loeschfunktion implementiert ist).
+
+### Offene Punkte
+
+- GitHub Pages auf Actions-Modus umstellen (braucht Admin-Zugang von paulCPU-1907) - dann entfaellt manuelles Root-Build.
+- Supabase-Secret-Key und OpenAI-Key rotieren (wurden im Chat geteilt).
+- CORS in Edge Functions auf github.io-URL einschraenken statt Wildcard.
+- Authentifizierung evaluieren (aktuell: keine JWT-Pruefung auf Functions).
+
 ## Vereinbarung
 
 - Diese Datei wird kuenftig waehrend der Arbeit regelmaessig aktualisiert.
